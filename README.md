@@ -4,7 +4,7 @@ Control your Windows PC's volume from any device on your network - your phone, t
 
 ## 📥 Download & Installation
 
-**[Download Volumate](#)** *(download link will be added here)*
+**[Download Volumate](https://github.com/ratulhasanruhan/volumate/releases/download/windows/volumate.exe)**
 
 1. Download `volumate.exe`
 2. Double-click to run
