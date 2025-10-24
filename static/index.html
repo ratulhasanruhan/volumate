@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volumate</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .volume-display {
+            text-align: center;
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        .slider-container {
+            margin: 30px 0;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-mute {
+            background: #f44336;
+            color: white;
+        }
+        .btn-mute:hover {
+            background: #d32f2f;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+        }
+        .btn-unmute {
+            background: #4caf50;
+            color: white;
+        }
+        .btn-unmute:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+        }
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            background: #f5f5f5;
+            color: #666;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .quick-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-top: 20px;
+        }
+        .quick-btn {
+            padding: 8px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .quick-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎚️ Volumate</h1>
+        <p class="subtitle">Control your PC audio remotely</p>
+
+        <div class="volume-display" id="volumeDisplay">50%</div>
+
+        <div class="slider-container">
+            <input type="range" min="0" max="100" value="50" id="volumeSlider">
+        </div>
+
+        <div class="quick-buttons">
+            <button class="quick-btn" onclick="setVolume(0)">0%</button>
+            <button class="quick-btn" onclick="setVolume(25)">25%</button>
+            <button class="quick-btn" onclick="setVolume(50)">50%</button>
+            <button class="quick-btn" onclick="setVolume(75)">75%</button>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-mute" onclick="setMute(true)">🔇 Mute</button>
+            <button class="btn-unmute" onclick="setMute(false)">🔊 Unmute</button>
+        </div>
+
+        <div class="status" id="status">Ready</div>
+    </div>
+
+    <script>
+        const slider = document.getElementById('volumeSlider');
+        const display = document.getElementById('volumeDisplay');
+        const status = document.getElementById('status');
+
+        let updateTimeout;
+
+        // Load current volume on page load
+        fetch('/api/volume')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.volume !== null) {
+                    const vol = Math.round(data.volume * 100);
+                    slider.value = vol;
+                    display.textContent = vol + '%';
+                    status.textContent = data.muted ? '🔇 Muted' : '🔊 Active';
+                }
+            })
+            .catch(e => {
+                status.textContent = 'Failed to load volume';
+                status.classList.add('error');
+            });
+
+        slider.oninput = function() {
+            display.textContent = this.value + '%';
+            clearTimeout(updateTimeout);
+            updateTimeout = setTimeout(() => {
+                updateVolume(this.value);
+            }, 100);
+        };
+
+        function updateVolume(value) {
+            const level = value / 100;
+            fetch('/api/volume', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({level: level})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    status.textContent = data.message || 'Volume updated';
+                    status.classList.remove('error');
+                } else {
+                    status.textContent = data.message || 'Error';
+                    status.classList.add('error');
+                }
+            })
+            .catch(e => {
+                status.textContent = 'Connection error';
+                status.classList.add('error');
+            });
+        }
+
+        function setVolume(value) {
+            slider.value = value;
+            display.textContent = value + '%';
+            updateVolume(value);
+        }
+
+        function setMute(muted) {
+            fetch('/api/mute', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({muted: muted})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    status.textContent = muted ? '🔇 Muted' : '🔊 Unmuted';
+                    status.classList.remove('error');
+                } else {
+                    status.textContent = data.message || 'Error';
+                    status.classList.add('error');
+                }
+            })
+            .catch(e => {
+                status.textContent = 'Connection error';
+                status.classList.add('error');
+            });
+        }
+    </script>
+</body>
+</html>
